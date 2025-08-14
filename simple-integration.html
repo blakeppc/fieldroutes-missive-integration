@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FieldRoutes Integration</title>
+    <script src="https://integrations.missiveapp.com/missive.js"></script>
+    <link href="https://integrations.missiveapp.com/missive.css" rel="stylesheet">
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .customer-info { border: 1px solid #ddd; padding: 15px; border-radius: 5px; }
+        .loading { text-align: center; color: #666; }
+        .error { color: red; padding: 10px; background: #fee; }
+        input { width: 100%; padding: 8px; margin: 10px 0; }
+        button { background: #007bff; color: white; padding: 10px 20px; border: none; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div id="auth-section">
+            <h3>Connect to FieldRoutes</h3>
+            <input type="text" id="api-url" placeholder="FieldRoutes API URL">
+            <input type="text" id="api-key" placeholder="API Key">
+            <input type="password" id="api-secret" placeholder="API Secret">
+            <button onclick="connect()">Connect</button>
+        </div>
+        
+        <div id="main-section" style="display:none;">
+            <input type="text" id="search" placeholder="Search customer by email..." onkeyup="searchCustomer()">
+            <div id="customer-info"></div>
+        </div>
+    </div>
+
+    <script>
+        let config = {};
+        
+        async function connect() {
+            const apiUrl = document.getElementById('api-url').value;
+            const apiKey = document.getElementById('api-key').value;
+            const apiSecret = document.getElementById('api-secret').value;
+            
+            if (!apiUrl || !apiKey || !apiSecret) {
+                alert('Please fill in all fields');
+                return;
+            }
+            
+            config = { apiUrl, apiKey, apiSecret };
+            
+            // Save to Missive storage
+            await Missive.storeSet('fieldroutes_config', JSON.stringify(config));
+            
+            document.getElementById('auth-section').style.display = 'none';
+            document.getElementById('main-section').style.display = 'block';
+            
+            // Try to find customer from current conversation
+            loadCurrentCustomer();
+        }
+        
+        async function loadCurrentCustomer() {
+            try {
+                const conversation = await Missive.getCurrentConversation();
+                if (conversation && conversation.contacts) {
+                    const email = conversation.contacts[0]?.email;
+                    if (email) {
+                        document.getElementById('search').value = email;
+                        searchCustomer();
+                    }
+                }
+            } catch (error) {
+                console.log('Could not load conversation');
+            }
+        }
+        
+        async function searchCustomer() {
+            const email = document.getElementById('search').value;
+            if (!email) return;
+            
+            const customerInfo = document.getElementById('customer-info');
+            customerInfo.innerHTML = '<div class="loading">Searching...</div>';
+            
+            try {
+                // This is a simplified version - in reality, you'd call your Heroku server
+                const response = await fetch(`${config.apiUrl}/customers/search?email=${email}`, {
+                    headers: {
+                        'Authorization': `Bearer ${config.apiKey}`,
+                        'X-API-Secret': config.apiSecret
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.customers && data.customers.length > 0) {
+                        showCustomer(data.customers[0]);
+                    } else {
+                        customerInfo.innerHTML = '<div>No customer found</div>';
+                    }
+                } else {
+                    customerInfo.innerHTML = '<div class="error">Error searching customer</div>';
+                }
+            } catch (error) {
+                customerInfo.innerHTML = '<div class="error">Connection error</div>';
+            }
+        }
+        
+        function showCustomer(customer) {
+            const html = `
+                <div class="customer-info">
+                    <h3>${customer.firstName} ${customer.lastName}</h3>
+                    <p><strong>Email:</strong> ${customer.email}</p>
+                    <p><strong>Phone:</strong> ${customer.phone}</p>
+                    <p><strong>Address:</strong> ${customer.address}</p>
+                    <p><strong>Status:</strong> ${customer.status}</p>
+                </div>
+            `;
+            document.getElementById('customer-info').innerHTML = html;
+        }
+        
+        // Initialize when page loads
+        window.addEventListener('load', async function() {
+            try {
+                const savedConfig = await Missive.storeGet('fieldroutes_config');
+                if (savedConfig) {
+                    config = JSON.parse(savedConfig);
+                    document.getElementById('auth-section').style.display = 'none';
+                    document.getElementById('main-section').style.display = 'block';
+                    loadCurrentCustomer();
+                }
+            } catch (error) {
+                console.log('No saved config found');
+            }
+        });
+    </script>
+</body>
+</html>
