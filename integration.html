@@ -1,498 +1,490 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FieldRoutes Customer Integration</title>
+    <title>FieldRoutes Integration</title>
     <script src="https://integrations.missiveapp.com/missive.js"></script>
     <link href="https://integrations.missiveapp.com/missive.css" rel="stylesheet">
     <style>
-        .integration-container {
-            padding: 16px;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            padding: 16px; 
+            margin: 0;
+            background: #f8f9fa;
         }
-        
-        .loading {
-            text-align: center;
-            padding: 20px;
-            color: #666;
-        }
-        
-        .error {
-            padding: 12px;
-            background-color: #fee;
-            border: 1px solid #fcc;
-            border-radius: 4px;
-            color: #c33;
-            margin-bottom: 16px;
-        }
-        
-        .customer-card {
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            padding: 16px;
-            margin-bottom: 16px;
+        .card { 
             background: white;
+            border: 1px solid #ddd; 
+            padding: 20px; 
+            border-radius: 8px; 
+            margin-bottom: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
-        
-        .customer-header {
-            display: flex;
-            justify-content: between;
-            align-items: center;
-            margin-bottom: 12px;
+        .loading { 
+            text-align: center; 
+            color: #666; 
+            padding: 20px;
         }
-        
+        .error { 
+            color: #d73502; 
+            padding: 12px; 
+            background: #feebea; 
+            border: 1px solid #f5c6cb;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success {
+            color: #155724;
+            padding: 12px;
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        input { 
+            width: 100%; 
+            padding: 10px; 
+            margin: 8px 0; 
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 14px;
+        }
+        button { 
+            background: #007bff; 
+            color: white; 
+            padding: 10px 20px; 
+            border: none; 
+            cursor: pointer; 
+            border-radius: 4px;
+            font-size: 14px;
+            width: 100%;
+            margin: 10px 0;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        .customer-info {
+            background: white;
+            border: 1px solid #28a745;
+            border-radius: 6px;
+            padding: 16px;
+        }
         .customer-name {
             font-size: 18px;
             font-weight: 600;
             color: #333;
+            margin-bottom: 12px;
         }
-        
-        .customer-id {
-            font-size: 12px;
-            color: #666;
-            background: #f5f5f5;
-            padding: 2px 6px;
-            border-radius: 3px;
-        }
-        
-        .customer-details {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin-bottom: 16px;
-        }
-        
-        .detail-item {
+        .customer-detail {
             display: flex;
-            flex-direction: column;
-        }
-        
-        .detail-label {
-            font-size: 12px;
-            color: #666;
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 2px;
-        }
-        
-        .detail-value {
-            font-size: 14px;
-            color: #333;
-        }
-        
-        .service-history {
-            margin-top: 16px;
-            padding-top: 16px;
-            border-top: 1px solid #eee;
-        }
-        
-        .history-header {
-            font-size: 14px;
-            font-weight: 600;
             margin-bottom: 8px;
-            color: #333;
         }
-        
-        .service-item {
-            padding: 8px 0;
-            border-bottom: 1px solid #f0f0f0;
-        }
-        
-        .service-item:last-child {
-            border-bottom: none;
-        }
-        
-        .service-date {
-            font-size: 12px;
-            color: #666;
-        }
-        
-        .service-type {
-            font-size: 13px;
+        .detail-label {
             font-weight: 500;
-            color: #333;
-        }
-        
-        .no-customer {
-            text-align: center;
-            padding: 32px;
+            min-width: 80px;
             color: #666;
         }
-        
-        .search-input {
-            width: 100%;
-            padding: 8px 12px;
-            border: 1px solid #ddd;
+        .detail-value {
+            color: #333;
+        }
+        .test-section {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
             border-radius: 4px;
-            margin-bottom: 16px;
-            font-size: 14px;
+            padding: 12px;
+            margin: 10px 0;
         }
-        
-        .auth-form {
-            padding: 20px;
-            text-align: center;
-        }
-        
-        .auth-input {
-            width: 100%;
-            max-width: 300px;
-            padding: 8px 12px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            margin: 8px 0;
-        }
-        
-        .auth-button {
-            background: #007bff;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-        }
-        
-        .auth-button:hover {
-            background: #0056b3;
+        .hidden {
+            display: none;
         }
     </style>
 </head>
 <body>
-    <div class="integration-container">
-        <div id="auth-section" class="auth-form" style="display: none;">
-            <h3>FieldRoutes Authentication</h3>
+    <div id="app">
+        <!-- Authentication Section -->
+        <div id="auth-section" class="card">
+            <h3>🔗 Connect to FieldRoutes</h3>
             <p>Enter your FieldRoutes API credentials:</p>
-            <input type="text" id="api-base-url" class="auth-input" placeholder="API Base URL (e.g., https://api.fieldroutes.com)" />
-            <input type="text" id="api-key" class="auth-input" placeholder="API Key" />
-            <input type="text" id="api-secret" class="auth-input" placeholder="API Secret" />
-            <button id="auth-button" class="auth-button">Connect to FieldRoutes</button>
+            
+            <label for="api-url">API Base URL:</label>
+            <input type="text" id="api-url" placeholder="e.g., https://ppclv.fieldroutes.com/api/v1" value="https://ppclv.fieldroutes.com/api/v1">
+            
+            <label for="api-key">API Key:</label>
+            <input type="text" id="api-key" placeholder="Your API Key from FieldRoutes">
+            
+            <label for="api-secret">API Token (Secret):</label>
+            <input type="password" id="api-secret" placeholder="Your API Token from FieldRoutes">
+            
+            <button id="connect-btn" onclick="connect()">🔌 Connect & Test</button>
+            
+            <div id="connection-status"></div>
         </div>
         
-        <div id="main-content" style="display: none;">
-            <input type="text" id="customer-search" class="search-input" placeholder="Search customers by email or phone..." />
-            <div id="content"></div>
+        <!-- Main Section -->
+        <div id="main-section" class="hidden">
+            <div class="card">
+                <h3>🔍 Customer Search</h3>
+                <input type="text" id="search" placeholder="Search by email, phone, or name..." onkeyup="handleSearch()">
+                <button onclick="searchCustomer()" id="search-btn">Search Customer</button>
+            </div>
+            
+            <div id="customer-results"></div>
         </div>
         
-        <div id="loading" class="loading">
-            Initializing integration...
+        <!-- Test Section -->
+        <div id="test-section" class="card test-section hidden">
+            <h4>🧪 API Connection Test</h4>
+            <p>Testing your FieldRoutes API connection...</p>
+            <div id="test-results"></div>
         </div>
     </div>
 
     <script>
-        class FieldRoutesIntegration {
-            constructor() {
-                this.apiConfig = {
-                    baseUrl: '',
-                    apiKey: '',
-                    apiSecret: ''
-                };
-                this.currentConversation = null;
-                this.customerData = null;
-                this.init();
-            }
-
-            async init() {
+        let config = {};
+        let searchTimeout;
+        
+        // Initialize when page loads
+        window.addEventListener('load', async function() {
+            console.log('Integration loading...');
+            
+            // Wait for Missive to be ready
+            if (typeof Missive !== 'undefined') {
                 try {
-                    // Wait for Missive to be ready
-                    await this.waitForMissive();
-                    
-                    // Check if we have stored credentials
-                    await this.checkAuthentication();
-                    
-                    // Listen for conversation changes
-                    Missive.on('change:conversation', this.handleConversationChange.bind(this));
-                    
-                    // Get current conversation
-                    this.currentConversation = await Missive.getCurrentConversation();
-                    if (this.currentConversation) {
-                        await this.handleConversationChange(this.currentConversation);
-                    }
-                    
-                } catch (error) {
-                    console.error('Integration initialization failed:', error);
-                    this.showError('Failed to initialize integration');
-                }
-            }
-
-            async waitForMissive() {
-                return new Promise((resolve) => {
-                    if (window.Missive) {
-                        resolve();
-                    } else {
-                        const checkMissive = setInterval(() => {
-                            if (window.Missive) {
-                                clearInterval(checkMissive);
-                                resolve();
-                            }
-                        }, 100);
-                    }
-                });
-            }
-
-            async checkAuthentication() {
-                try {
-                    const storedConfig = await Missive.storeGet('fieldroutes_config');
-                    if (storedConfig) {
-                        this.apiConfig = JSON.parse(storedConfig);
-                        this.showMainContent();
-                    } else {
-                        this.showAuthForm();
+                    const savedConfig = await Missive.storeGet('fieldroutes_config');
+                    if (savedConfig) {
+                        config = JSON.parse(savedConfig);
+                        showMainSection();
+                        await loadCurrentCustomer();
                     }
                 } catch (error) {
-                    console.error('Authentication check failed:', error);
-                    this.showAuthForm();
+                    console.log('No saved config found or error loading:', error);
                 }
             }
-
-            showAuthForm() {
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('auth-section').style.display = 'block';
+        });
+        
+        async function connect() {
+            const apiUrl = document.getElementById('api-url').value.trim();
+            const apiKey = document.getElementById('api-key').value.trim();
+            const apiSecret = document.getElementById('api-secret').value.trim();
+            
+            // Clear previous status
+            document.getElementById('connection-status').innerHTML = '';
+            
+            if (!apiUrl || !apiKey || !apiSecret) {
+                showError('connection-status', 'Please fill in all fields');
+                return;
+            }
+            
+            // Disable connect button
+            const connectBtn = document.getElementById('connect-btn');
+            connectBtn.disabled = true;
+            connectBtn.textContent = '🔄 Testing Connection...';
+            
+            config = { apiUrl, apiKey, apiSecret };
+            
+            // Test the connection
+            const isConnected = await testConnection();
+            
+            if (isConnected) {
+                try {
+                    // Save to Missive storage
+                    await Missive.storeSet('fieldroutes_config', JSON.stringify(config));
+                    showSuccess('connection-status', '✅ Connected successfully!');
+                    
+                    setTimeout(() => {
+                        showMainSection();
+                        loadCurrentCustomer();
+                    }, 1500);
+                } catch (error) {
+                    showError('connection-status', 'Connected but failed to save credentials');
+                }
+            }
+            
+            // Re-enable button
+            connectBtn.disabled = false;
+            connectBtn.textContent = '🔌 Connect & Test';
+        }
+        
+        async function testConnection() {
+            document.getElementById('test-section').classList.remove('hidden');
+            const testResults = document.getElementById('test-results');
+            testResults.innerHTML = '<div class="loading">Testing API connection...</div>';
+            
+            try {
+                // Try different common FieldRoutes API endpoints
+                const testUrls = [
+                    `${config.apiUrl}/customers?limit=1`,
+                    `${config.apiUrl.replace('/v1', '')}/customers?limit=1`,
+                    `${config.apiUrl}/api/customers?limit=1`
+                ];
                 
-                document.getElementById('auth-button').addEventListener('click', async () => {
-                    const baseUrl = document.getElementById('api-base-url').value.trim();
-                    const apiKey = document.getElementById('api-key').value.trim();
-                    const apiSecret = document.getElementById('api-secret').value.trim();
-                    
-                    if (!baseUrl || !apiKey || !apiSecret) {
-                        this.showError('Please fill in all fields');
-                        return;
-                    }
-                    
-                    this.apiConfig = { baseUrl, apiKey, apiSecret };
+                for (let testUrl of testUrls) {
+                    console.log(`Testing URL: ${testUrl}`);
                     
                     try {
-                        await Missive.storeSet('fieldroutes_config', JSON.stringify(this.apiConfig));
-                        this.showMainContent();
-                    } catch (error) {
-                        this.showError('Failed to save credentials');
-                    }
-                });
-            }
-
-            showMainContent() {
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('auth-section').style.display = 'none';
-                document.getElementById('main-content').style.display = 'block';
-                
-                // Setup search functionality
-                const searchInput = document.getElementById('customer-search');
-                let searchTimeout;
-                
-                searchInput.addEventListener('input', (e) => {
-                    clearTimeout(searchTimeout);
-                    searchTimeout = setTimeout(() => {
-                        this.searchCustomer(e.target.value);
-                    }, 500);
-                });
-            }
-
-            async handleConversationChange(conversation) {
-                this.currentConversation = conversation;
-                
-                if (!conversation) {
-                    this.showNoCustomer();
-                    return;
-                }
-
-                // Extract email addresses from the conversation
-                const participants = conversation.contacts || [];
-                const emails = participants.map(p => p.email).filter(Boolean);
-                
-                if (emails.length === 0) {
-                    this.showNoCustomer();
-                    return;
-                }
-
-                // Search for customer by email
-                for (const email of emails) {
-                    const customer = await this.fetchCustomerByEmail(email);
-                    if (customer) {
-                        this.displayCustomer(customer);
-                        return;
-                    }
-                }
-                
-                this.showNoCustomer();
-            }
-
-            async fetchCustomerByEmail(email) {
-                try {
-                    const response = await this.apiRequest(`/customers/search?email=${encodeURIComponent(email)}`);
-                    return response.data && response.data.length > 0 ? response.data[0] : null;
-                } catch (error) {
-                    console.error('Failed to fetch customer by email:', error);
-                    return null;
-                }
-            }
-
-            async searchCustomer(query) {
-                if (!query || query.length < 2) {
-                    this.showNoCustomer();
-                    return;
-                }
-
-                this.showLoading();
-
-                try {
-                    const response = await this.apiRequest(`/customers/search?q=${encodeURIComponent(query)}`);
-                    if (response.data && response.data.length > 0) {
-                        this.displayCustomer(response.data[0]);
-                    } else {
-                        this.showNoCustomer();
-                    }
-                } catch (error) {
-                    this.showError('Failed to search customer');
-                }
-            }
-
-            async apiRequest(endpoint, method = 'GET', data = null) {
-                const url = `${this.apiConfig.baseUrl}${endpoint}`;
-                const options = {
-                    method,
-                    headers: {
-                        'Authorization': `Bearer ${this.apiConfig.apiKey}`,
-                        'Content-Type': 'application/json',
-                        'X-API-Secret': this.apiConfig.apiSecret
-                    }
-                };
-
-                if (data) {
-                    options.body = JSON.stringify(data);
-                }
-
-                const response = await fetch(url, options);
-                
-                if (!response.ok) {
-                    throw new Error(`API request failed: ${response.status}`);
-                }
-
-                return await response.json();
-            }
-
-            async displayCustomer(customer) {
-                this.customerData = customer;
-                
-                // Fetch additional data like service history
-                let serviceHistory = [];
-                try {
-                    const historyResponse = await this.apiRequest(`/customers/${customer.id}/services`);
-                    serviceHistory = historyResponse.data || [];
-                } catch (error) {
-                    console.error('Failed to fetch service history:', error);
-                }
-
-                const html = `
-                    <div class="customer-card">
-                        <div class="customer-header">
-                            <div class="customer-name">${customer.firstName || ''} ${customer.lastName || ''}</div>
-                            <div class="customer-id">ID: ${customer.id}</div>
-                        </div>
+                        const response = await fetch(testUrl, {
+                            method: 'GET',
+                            headers: {
+                                'Authorization': `Bearer ${config.apiKey}`,
+                                'X-API-Token': config.apiSecret,
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json'
+                            },
+                            mode: 'cors'
+                        });
                         
-                        <div class="customer-details">
-                            <div class="detail-item">
-                                <div class="detail-label">Email</div>
-                                <div class="detail-value">${customer.email || 'N/A'}</div>
-                            </div>
-                            <div class="detail-item">
-                                <div class="detail-label">Phone</div>
-                                <div class="detail-value">${customer.phone || 'N/A'}</div>
-                            </div>
-                            <div class="detail-item">
-                                <div class="detail-label">Address</div>
-                                <div class="detail-value">${this.formatAddress(customer.address)}</div>
-                            </div>
-                            <div class="detail-item">
-                                <div class="detail-label">Status</div>
-                                <div class="detail-value">${customer.status || 'Active'}</div>
-                            </div>
-                            <div class="detail-item">
-                                <div class="detail-label">Account Balance</div>
-                                <div class="detail-value">$${customer.balance || '0.00'}</div>
-                            </div>
-                            <div class="detail-item">
-                                <div class="detail-label">Service Plan</div>
-                                <div class="detail-value">${customer.servicePlan || 'N/A'}</div>
-                            </div>
-                        </div>
+                        console.log(`Response status: ${response.status}`);
                         
-                        ${serviceHistory.length > 0 ? `
-                        <div class="service-history">
-                            <div class="history-header">Recent Services</div>
-                            ${serviceHistory.slice(0, 5).map(service => `
-                                <div class="service-item">
-                                    <div class="service-date">${this.formatDate(service.date)}</div>
-                                    <div class="service-type">${service.type || 'Service'} - ${service.status || 'Completed'}</div>
+                        if (response.ok) {
+                            const data = await response.json();
+                            console.log('API Response:', data);
+                            
+                            testResults.innerHTML = `
+                                <div class="success">
+                                    ✅ API Connection Successful!<br>
+                                    <small>URL: ${testUrl}</small><br>
+                                    <small>Status: ${response.status}</small>
                                 </div>
-                            `).join('')}
-                        </div>
-                        ` : ''}
+                            `;
+                            
+                            // Update config with working URL
+                            config.apiUrl = testUrl.replace(/\/customers.*/, '');
+                            return true;
+                        }
+                    } catch (fetchError) {
+                        console.log(`Fetch error for ${testUrl}:`, fetchError);
+                        continue;
+                    }
+                }
+                
+                // If all URLs failed
+                testResults.innerHTML = `
+                    <div class="error">
+                        ❌ Could not connect to FieldRoutes API<br>
+                        <small>This might be due to CORS restrictions or incorrect credentials.</small><br><br>
+                        <strong>Please verify:</strong><br>
+                        • API URL: ${config.apiUrl}<br>
+                        • API Key is correct<br>
+                        • API Token is correct<br>
+                        • Your FieldRoutes account has API access enabled
                     </div>
                 `;
-
-                document.getElementById('content').innerHTML = html;
                 
-                // Notify Missive about the customer data
-                try {
-                    await Missive.notifyResize();
-                } catch (error) {
-                    console.error('Failed to notify resize:', error);
-                }
-            }
-
-            formatAddress(address) {
-                if (!address) return 'N/A';
-                if (typeof address === 'string') return address;
+                showError('connection-status', 'Connection test failed. Please check your credentials and API URL.');
+                return false;
                 
-                const parts = [
-                    address.street,
-                    address.city,
-                    address.state,
-                    address.zip
-                ].filter(Boolean);
-                
-                return parts.join(', ') || 'N/A';
-            }
-
-            formatDate(dateString) {
-                if (!dateString) return '';
-                const date = new Date(dateString);
-                return date.toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric'
-                });
-            }
-
-            showLoading() {
-                document.getElementById('content').innerHTML = '<div class="loading">Loading customer data...</div>';
-            }
-
-            showNoCustomer() {
-                document.getElementById('content').innerHTML = `
-                    <div class="no-customer">
-                        <p>No customer found for this conversation.</p>
-                        <p>Use the search box above to find a customer manually.</p>
+            } catch (error) {
+                console.error('Connection test error:', error);
+                testResults.innerHTML = `
+                    <div class="error">
+                        ❌ Connection Error: ${error.message}<br>
+                        <small>Check browser console for details</small>
                     </div>
                 `;
-            }
-
-            showError(message) {
-                const errorHtml = `<div class="error">${message}</div>`;
-                const contentDiv = document.getElementById('content');
-                if (contentDiv) {
-                    contentDiv.innerHTML = errorHtml + contentDiv.innerHTML;
-                } else {
-                    document.getElementById('loading').innerHTML = errorHtml;
-                }
+                showError('connection-status', 'Connection failed. Check console for details.');
+                return false;
             }
         }
-
-        // Initialize the integration when the page loads
-        document.addEventListener('DOMContentLoaded', () => {
-            new FieldRoutesIntegration();
-        });
+        
+        function showMainSection() {
+            document.getElementById('auth-section').classList.add('hidden');
+            document.getElementById('main-section').classList.remove('hidden');
+            document.getElementById('test-section').classList.add('hidden');
+        }
+        
+        async function loadCurrentCustomer() {
+            try {
+                if (typeof Missive !== 'undefined') {
+                    const conversation = await Missive.getCurrentConversation();
+                    if (conversation && conversation.contacts && conversation.contacts.length > 0) {
+                        const email = conversation.contacts[0]?.email;
+                        if (email) {
+                            document.getElementById('search').value = email;
+                            await searchCustomer();
+                        }
+                    }
+                }
+            } catch (error) {
+                console.log('Could not load current conversation:', error);
+                showInfo('customer-results', '💡 Enter a customer email or phone number to search');
+            }
+        }
+        
+        function handleSearch() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                const query = document.getElementById('search').value.trim();
+                if (query.length > 2) {
+                    searchCustomer();
+                }
+            }, 500);
+        }
+        
+        async function searchCustomer() {
+            const query = document.getElementById('search').value.trim();
+            if (!query) {
+                showError('customer-results', 'Please enter a search term');
+                return;
+            }
+            
+            const resultsDiv = document.getElementById('customer-results');
+            resultsDiv.innerHTML = '<div class="card"><div class="loading">🔄 Searching for customer...</div></div>';
+            
+            const searchBtn = document.getElementById('search-btn');
+            searchBtn.disabled = true;
+            searchBtn.textContent = '🔄 Searching...';
+            
+            try {
+                // Try to search by email first, then by general search
+                let customer = null;
+                
+                if (query.includes('@')) {
+                    customer = await searchByEmail(query);
+                } else {
+                    customer = await searchGeneral(query);
+                }
+                
+                if (customer) {
+                    showCustomer(customer);
+                } else {
+                    resultsDiv.innerHTML = `
+                        <div class="card">
+                            <div class="error">
+                                🚫 No customer found for "${query}"<br>
+                                <small>Try searching by email address, phone number, or full name</small>
+                            </div>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Search error:', error);
+                resultsDiv.innerHTML = `
+                    <div class="card">
+                        <div class="error">
+                            ❌ Search failed: ${error.message}<br>
+                            <small>Please check your connection and try again</small>
+                        </div>
+                    </div>
+                `;
+            } finally {
+                searchBtn.disabled = false;
+                searchBtn.textContent = 'Search Customer';
+            }
+        }
+        
+        async function searchByEmail(email) {
+            const url = `${config.apiUrl}/customers?email=${encodeURIComponent(email)}`;
+            return await makeApiRequest(url);
+        }
+        
+        async function searchGeneral(query) {
+            const url = `${config.apiUrl}/customers?search=${encodeURIComponent(query)}`;
+            return await makeApiRequest(url);
+        }
+        
+        async function makeApiRequest(url) {
+            console.log(`Making API request to: ${url}`);
+            
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${config.apiKey}`,
+                    'X-API-Token': config.apiSecret,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                mode: 'cors'
+            });
+            
+            if (!response.ok) {
+                throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            console.log('API Response:', data);
+            
+            // Handle different response formats
+            if (data.customers && data.customers.length > 0) {
+                return data.customers[0];
+            } else if (data.data && data.data.length > 0) {
+                return data.data[0];
+            } else if (Array.isArray(data) && data.length > 0) {
+                return data[0];
+            } else if (data.id) {
+                return data; // Single customer object
+            }
+            
+            return null;
+        }
+        
+        function showCustomer(customer) {
+            const html = `
+                <div class="card customer-info">
+                    <div class="customer-name">
+                        👤 ${customer.firstName || ''} ${customer.lastName || customer.name || 'Customer'}
+                    </div>
+                    <div class="customer-detail">
+                        <span class="detail-label">📧 Email:</span>
+                        <span class="detail-value">${customer.email || 'N/A'}</span>
+                    </div>
+                    <div class="customer-detail">
+                        <span class="detail-label">📞 Phone:</span>
+                        <span class="detail-value">${customer.phone || customer.phoneNumber || 'N/A'}</span>
+                    </div>
+                    <div class="customer-detail">
+                        <span class="detail-label">🏠 Address:</span>
+                        <span class="detail-value">${formatAddress(customer.address || customer.serviceAddress)}</span>
+                    </div>
+                    <div class="customer-detail">
+                        <span class="detail-label">📊 Status:</span>
+                        <span class="detail-value">${customer.status || customer.accountStatus || 'Active'}</span>
+                    </div>
+                    ${customer.balance ? `
+                    <div class="customer-detail">
+                        <span class="detail-label">💰 Balance:</span>
+                        <span class="detail-value">$${customer.balance}</span>
+                    </div>
+                    ` : ''}
+                    ${customer.id ? `
+                    <div class="customer-detail">
+                        <span class="detail-label">🆔 ID:</span>
+                        <span class="detail-value">${customer.id}</span>
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+            document.getElementById('customer-results').innerHTML = html;
+        }
+        
+        function formatAddress(address) {
+            if (!address) return 'N/A';
+            if (typeof address === 'string') return address;
+            
+            const parts = [
+                address.street || address.address1,
+                address.city,
+                address.state,
+                address.zip || address.zipCode
+            ].filter(Boolean);
+            
+            return parts.length > 0 ? parts.join(', ') : 'N/A';
+        }
+        
+        function showError(elementId, message) {
+            document.getElementById(elementId).innerHTML = `<div class="error">${message}</div>`;
+        }
+        
+        function showSuccess(elementId, message) {
+            document.getElementById(elementId).innerHTML = `<div class="success">${message}</div>`;
+        }
+        
+        function showInfo(elementId, message) {
+            document.getElementById(elementId).innerHTML = `<div class="card">${message}</div>`;
+        }
     </script>
 </body>
 </html>
