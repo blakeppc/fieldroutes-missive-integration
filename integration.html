@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FieldRoutes Customer Integration</title>
+    <script src="https://integrations.missiveapp.com/missive.js"></script>
+    <link href="https://integrations.missiveapp.com/missive.css" rel="stylesheet">
+    <style>
+        .integration-container {
+            padding: 16px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        
+        .error {
+            padding: 12px;
+            background-color: #fee;
+            border: 1px solid #fcc;
+            border-radius: 4px;
+            color: #c33;
+            margin-bottom: 16px;
+        }
+        
+        .customer-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+            background: white;
+        }
+        
+        .customer-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        
+        .customer-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .customer-id {
+            font-size: 12px;
+            color: #666;
+            background: #f5f5f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        
+        .customer-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        
+        .detail-item {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .detail-label {
+            font-size: 12px;
+            color: #666;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 2px;
+        }
+        
+        .detail-value {
+            font-size: 14px;
+            color: #333;
+        }
+        
+        .service-history {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #eee;
+        }
+        
+        .history-header {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+        
+        .service-item {
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .service-item:last-child {
+            border-bottom: none;
+        }
+        
+        .service-date {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .service-type {
+            font-size: 13px;
+            font-weight: 500;
+            color: #333;
+        }
+        
+        .no-customer {
+            text-align: center;
+            padding: 32px;
+            color: #666;
+        }
+        
+        .search-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 16px;
+            font-size: 14px;
+        }
+        
+        .auth-form {
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .auth-input {
+            width: 100%;
+            max-width: 300px;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin: 8px 0;
+        }
+        
+        .auth-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .auth-button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="integration-container">
+        <div id="auth-section" class="auth-form" style="display: none;">
+            <h3>FieldRoutes Authentication</h3>
+            <p>Enter your FieldRoutes API credentials:</p>
+            <input type="text" id="api-base-url" class="auth-input" placeholder="API Base URL (e.g., https://api.fieldroutes.com)" />
+            <input type="text" id="api-key" class="auth-input" placeholder="API Key" />
+            <input type="text" id="api-secret" class="auth-input" placeholder="API Secret" />
+            <button id="auth-button" class="auth-button">Connect to FieldRoutes</button>
+        </div>
+        
+        <div id="main-content" style="display: none;">
+            <input type="text" id="customer-search" class="search-input" placeholder="Search customers by email or phone..." />
+            <div id="content"></div>
+        </div>
+        
+        <div id="loading" class="loading">
+            Initializing integration...
+        </div>
+    </div>
+
+    <script>
+        class FieldRoutesIntegration {
+            constructor() {
+                this.apiConfig = {
+                    baseUrl: '',
+                    apiKey: '',
+                    apiSecret: ''
+                };
+                this.currentConversation = null;
+                this.customerData = null;
+                this.init();
+            }
+
+            async init() {
+                try {
+                    // Wait for Missive to be ready
+                    await this.waitForMissive();
+                    
+                    // Check if we have stored credentials
+                    await this.checkAuthentication();
+                    
+                    // Listen for conversation changes
+                    Missive.on('change:conversation', this.handleConversationChange.bind(this));
+                    
+                    // Get current conversation
+                    this.currentConversation = await Missive.getCurrentConversation();
+                    if (this.currentConversation) {
+                        await this.handleConversationChange(this.currentConversation);
+                    }
+                    
+                } catch (error) {
+                    console.error('Integration initialization failed:', error);
+                    this.showError('Failed to initialize integration');
+                }
+            }
+
+            async waitForMissive() {
+                return new Promise((resolve) => {
+                    if (window.Missive) {
+                        resolve();
+                    } else {
+                        const checkMissive = setInterval(() => {
+                            if (window.Missive) {
+                                clearInterval(checkMissive);
+                                resolve();
+                            }
+                        }, 100);
+                    }
+                });
+            }
+
+            async checkAuthentication() {
+                try {
+                    const storedConfig = await Missive.storeGet('fieldroutes_config');
+                    if (storedConfig) {
+                        this.apiConfig = JSON.parse(storedConfig);
+                        this.showMainContent();
+                    } else {
+                        this.showAuthForm();
+                    }
+                } catch (error) {
+                    console.error('Authentication check failed:', error);
+                    this.showAuthForm();
+                }
+            }
+
+            showAuthForm() {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('auth-section').style.display = 'block';
+                
+                document.getElementById('auth-button').addEventListener('click', async () => {
+                    const baseUrl = document.getElementById('api-base-url').value.trim();
+                    const apiKey = document.getElementById('api-key').value.trim();
+                    const apiSecret = document.getElementById('api-secret').value.trim();
+                    
+                    if (!baseUrl || !apiKey || !apiSecret) {
+                        this.showError('Please fill in all fields');
+                        return;
+                    }
+                    
+                    this.apiConfig = { baseUrl, apiKey, apiSecret };
+                    
+                    try {
+                        await Missive.storeSet('fieldroutes_config', JSON.stringify(this.apiConfig));
+                        this.showMainContent();
+                    } catch (error) {
+                        this.showError('Failed to save credentials');
+                    }
+                });
+            }
+
+            showMainContent() {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('auth-section').style.display = 'none';
+                document.getElementById('main-content').style.display = 'block';
+                
+                // Setup search functionality
+                const searchInput = document.getElementById('customer-search');
+                let searchTimeout;
+                
+                searchInput.addEventListener('input', (e) => {
+                    clearTimeout(searchTimeout);
+                    searchTimeout = setTimeout(() => {
+                        this.searchCustomer(e.target.value);
+                    }, 500);
+                });
+            }
+
+            async handleConversationChange(conversation) {
+                this.currentConversation = conversation;
+                
+                if (!conversation) {
+                    this.showNoCustomer();
+                    return;
+                }
+
+                // Extract email addresses from the conversation
+                const participants = conversation.contacts || [];
+                const emails = participants.map(p => p.email).filter(Boolean);
+                
+                if (emails.length === 0) {
+                    this.showNoCustomer();
+                    return;
+                }
+
+                // Search for customer by email
+                for (const email of emails) {
+                    const customer = await this.fetchCustomerByEmail(email);
+                    if (customer) {
+                        this.displayCustomer(customer);
+                        return;
+                    }
+                }
+                
+                this.showNoCustomer();
+            }
+
+            async fetchCustomerByEmail(email) {
+                try {
+                    const response = await this.apiRequest(`/customers/search?email=${encodeURIComponent(email)}`);
+                    return response.data && response.data.length > 0 ? response.data[0] : null;
+                } catch (error) {
+                    console.error('Failed to fetch customer by email:', error);
+                    return null;
+                }
+            }
+
+            async searchCustomer(query) {
+                if (!query || query.length < 2) {
+                    this.showNoCustomer();
+                    return;
+                }
+
+                this.showLoading();
+
+                try {
+                    const response = await this.apiRequest(`/customers/search?q=${encodeURIComponent(query)}`);
+                    if (response.data && response.data.length > 0) {
+                        this.displayCustomer(response.data[0]);
+                    } else {
+                        this.showNoCustomer();
+                    }
+                } catch (error) {
+                    this.showError('Failed to search customer');
+                }
+            }
+
+            async apiRequest(endpoint, method = 'GET', data = null) {
+                const url = `${this.apiConfig.baseUrl}${endpoint}`;
+                const options = {
+                    method,
+                    headers: {
+                        'Authorization': `Bearer ${this.apiConfig.apiKey}`,
+                        'Content-Type': 'application/json',
+                        'X-API-Secret': this.apiConfig.apiSecret
+                    }
+                };
+
+                if (data) {
+                    options.body = JSON.stringify(data);
+                }
+
+                const response = await fetch(url, options);
+                
+                if (!response.ok) {
+                    throw new Error(`API request failed: ${response.status}`);
+                }
+
+                return await response.json();
+            }
+
+            async displayCustomer(customer) {
+                this.customerData = customer;
+                
+                // Fetch additional data like service history
+                let serviceHistory = [];
+                try {
+                    const historyResponse = await this.apiRequest(`/customers/${customer.id}/services`);
+                    serviceHistory = historyResponse.data || [];
+                } catch (error) {
+                    console.error('Failed to fetch service history:', error);
+                }
+
+                const html = `
+                    <div class="customer-card">
+                        <div class="customer-header">
+                            <div class="customer-name">${customer.firstName || ''} ${customer.lastName || ''}</div>
+                            <div class="customer-id">ID: ${customer.id}</div>
+                        </div>
+                        
+                        <div class="customer-details">
+                            <div class="detail-item">
+                                <div class="detail-label">Email</div>
+                                <div class="detail-value">${customer.email || 'N/A'}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Phone</div>
+                                <div class="detail-value">${customer.phone || 'N/A'}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Address</div>
+                                <div class="detail-value">${this.formatAddress(customer.address)}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Status</div>
+                                <div class="detail-value">${customer.status || 'Active'}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Account Balance</div>
+                                <div class="detail-value">$${customer.balance || '0.00'}</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">Service Plan</div>
+                                <div class="detail-value">${customer.servicePlan || 'N/A'}</div>
+                            </div>
+                        </div>
+                        
+                        ${serviceHistory.length > 0 ? `
+                        <div class="service-history">
+                            <div class="history-header">Recent Services</div>
+                            ${serviceHistory.slice(0, 5).map(service => `
+                                <div class="service-item">
+                                    <div class="service-date">${this.formatDate(service.date)}</div>
+                                    <div class="service-type">${service.type || 'Service'} - ${service.status || 'Completed'}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+
+                document.getElementById('content').innerHTML = html;
+                
+                // Notify Missive about the customer data
+                try {
+                    await Missive.notifyResize();
+                } catch (error) {
+                    console.error('Failed to notify resize:', error);
+                }
+            }
+
+            formatAddress(address) {
+                if (!address) return 'N/A';
+                if (typeof address === 'string') return address;
+                
+                const parts = [
+                    address.street,
+                    address.city,
+                    address.state,
+                    address.zip
+                ].filter(Boolean);
+                
+                return parts.join(', ') || 'N/A';
+            }
+
+            formatDate(dateString) {
+                if (!dateString) return '';
+                const date = new Date(dateString);
+                return date.toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                });
+            }
+
+            showLoading() {
+                document.getElementById('content').innerHTML = '<div class="loading">Loading customer data...</div>';
+            }
+
+            showNoCustomer() {
+                document.getElementById('content').innerHTML = `
+                    <div class="no-customer">
+                        <p>No customer found for this conversation.</p>
+                        <p>Use the search box above to find a customer manually.</p>
+                    </div>
+                `;
+            }
+
+            showError(message) {
+                const errorHtml = `<div class="error">${message}</div>`;
+                const contentDiv = document.getElementById('content');
+                if (contentDiv) {
+                    contentDiv.innerHTML = errorHtml + contentDiv.innerHTML;
+                } else {
+                    document.getElementById('loading').innerHTML = errorHtml;
+                }
+            }
+        }
+
+        // Initialize the integration when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new FieldRoutesIntegration();
+        });
+    </script>
+</body>
+</html>
