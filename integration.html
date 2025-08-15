@@ -60,13 +60,9 @@
             width: 100%;
             margin: 10px 0;
         }
-        button:hover {
-            background: #0056b3;
-        }
-        button:disabled {
-            background: #6c757d;
-            cursor: not-allowed;
-        }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        
         .customer-info {
             background: white;
             border: 1px solid #28a745;
@@ -88,38 +84,29 @@
             min-width: 80px;
             color: #666;
         }
-        .detail-value {
-            color: #333;
-        }
-        .test-section {
-            background: #fff3cd;
-            border: 1px solid #ffeaa7;
-            border-radius: 4px;
-            padding: 12px;
-            margin: 10px 0;
-        }
-        .hidden {
-            display: none;
-        }
+        .detail-value { color: #333; }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
     <div id="app">
-        <!-- Authentication Section -->
+        <!-- Auth Section -->
         <div id="auth-section" class="card">
             <h3>🔗 Connect to FieldRoutes</h3>
-            <p>Enter your FieldRoutes API credentials:</p>
             
-            <label for="api-url">API Base URL:</label>
-            <input type="text" id="api-url" placeholder="e.g., https://ppclv.fieldroutes.com/api/v1" value="https://ppclv.fieldroutes.com/api/v1">
+            <label>Your Server URL:</label>
+            <input type="text" id="server-url" placeholder="https://your-repl-url.repl.co" value="">
             
-            <label for="api-key">API Key:</label>
-            <input type="text" id="api-key" placeholder="Your API Key from FieldRoutes">
+            <label>FieldRoutes API URL:</label>
+            <input type="text" id="api-url" value="https://ppclv.fieldroutes.com/api/v1">
             
-            <label for="api-secret">API Token (Secret):</label>
-            <input type="password" id="api-secret" placeholder="Your API Token from FieldRoutes">
+            <label>API Key:</label>
+            <input type="text" id="api-key" placeholder="Your API Key">
             
-            <button id="connect-btn" onclick="connect()">🔌 Connect & Test</button>
+            <label>API Token:</label>
+            <input type="password" id="api-token" placeholder="Your API Token">
+            
+            <button onclick="testAndConnect()">🧪 Test & Connect</button>
             
             <div id="connection-status"></div>
         </div>
@@ -128,297 +115,121 @@
         <div id="main-section" class="hidden">
             <div class="card">
                 <h3>🔍 Customer Search</h3>
-                <input type="text" id="search" placeholder="Search by email, phone, or name..." onkeyup="handleSearch()">
-                <button onclick="searchCustomer()" id="search-btn">Search Customer</button>
+                <input type="text" id="search" placeholder="Enter email, phone, or name...">
+                <button onclick="searchCustomer()">Search Customer</button>
             </div>
-            
             <div id="customer-results"></div>
-        </div>
-        
-        <!-- Test Section -->
-        <div id="test-section" class="card test-section hidden">
-            <h4>🧪 API Connection Test</h4>
-            <p>Testing your FieldRoutes API connection...</p>
-            <div id="test-results"></div>
         </div>
     </div>
 
     <script>
         let config = {};
-        let searchTimeout;
         
-        // Initialize when page loads
         window.addEventListener('load', async function() {
-            console.log('Integration loading...');
-            
-            // Wait for Missive to be ready
-            if (typeof Missive !== 'undefined') {
-                try {
-                    const savedConfig = await Missive.storeGet('fieldroutes_config');
-                    if (savedConfig) {
-                        config = JSON.parse(savedConfig);
-                        showMainSection();
-                        await loadCurrentCustomer();
-                    }
-                } catch (error) {
-                    console.log('No saved config found or error loading:', error);
+            try {
+                const savedConfig = await Missive.storeGet('fieldroutes_config');
+                if (savedConfig) {
+                    config = JSON.parse(savedConfig);
+                    // Pre-fill form
+                    document.getElementById('server-url').value = config.serverUrl || '';
+                    document.getElementById('api-url').value = config.apiUrl || '';
+                    document.getElementById('api-key').value = config.apiKey || '';
+                    // Don't pre-fill password for security
+                    
+                    showMainSection();
+                    loadCurrentCustomer();
                 }
+            } catch (error) {
+                console.log('No saved config');
             }
         });
         
-        async function connect() {
+        async function testAndConnect() {
+            const serverUrl = document.getElementById('server-url').value.trim();
             const apiUrl = document.getElementById('api-url').value.trim();
             const apiKey = document.getElementById('api-key').value.trim();
-            const apiSecret = document.getElementById('api-secret').value.trim();
+            const apiToken = document.getElementById('api-token').value.trim();
             
-            // Clear previous status
-            document.getElementById('connection-status').innerHTML = '';
-            
-            if (!apiUrl || !apiKey || !apiSecret) {
-                showError('connection-status', 'Please fill in all fields');
+            if (!serverUrl || !apiUrl || !apiKey || !apiToken) {
+                showStatus('error', 'Please fill in all fields');
                 return;
             }
             
-            // Disable connect button
-            const connectBtn = document.getElementById('connect-btn');
-            connectBtn.disabled = true;
-            connectBtn.textContent = '🔄 Testing Connection...';
+            config = { serverUrl, apiUrl, apiKey, apiToken };
             
-            config = { apiUrl, apiKey, apiSecret };
+            showStatus('loading', '🧪 Testing connection...');
             
-            // Test the connection
-            const isConnected = await testConnection();
-            
-            if (isConnected) {
-                try {
-                    // Save to Missive storage
+            try {
+                const response = await fetch(`${serverUrl}/test-connection`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        apiUrl: apiUrl,
+                        apiKey: apiKey,
+                        apiToken: apiToken
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
                     await Missive.storeSet('fieldroutes_config', JSON.stringify(config));
-                    showSuccess('connection-status', '✅ Connected successfully!');
-                    
-                    setTimeout(() => {
-                        showMainSection();
-                        loadCurrentCustomer();
-                    }, 1500);
-                } catch (error) {
-                    showError('connection-status', 'Connected but failed to save credentials');
+                    showStatus('success', '✅ Connection successful!');
+                    setTimeout(showMainSection, 1500);
+                } else {
+                    showStatus('error', `❌ ${result.error}: ${result.details}`);
                 }
-            }
-            
-            // Re-enable button
-            connectBtn.disabled = false;
-            connectBtn.textContent = '🔌 Connect & Test';
-        }
-        
-        async function testConnection() {
-            document.getElementById('test-section').classList.remove('hidden');
-            const testResults = document.getElementById('test-results');
-            testResults.innerHTML = '<div class="loading">Testing API connection...</div>';
-            
-            try {
-                // Try different common FieldRoutes API endpoints
-                const testUrls = [
-                    `${config.apiUrl}/customers?limit=1`,
-                    `${config.apiUrl.replace('/v1', '')}/customers?limit=1`,
-                    `${config.apiUrl}/api/customers?limit=1`
-                ];
-                
-                for (let testUrl of testUrls) {
-                    console.log(`Testing URL: ${testUrl}`);
-                    
-                    try {
-                        const response = await fetch(testUrl, {
-                            method: 'GET',
-                            headers: {
-                                'Authorization': `Bearer ${config.apiKey}`,
-                                'X-API-Token': config.apiSecret,
-                                'Content-Type': 'application/json',
-                                'Accept': 'application/json'
-                            },
-                            mode: 'cors'
-                        });
-                        
-                        console.log(`Response status: ${response.status}`);
-                        
-                        if (response.ok) {
-                            const data = await response.json();
-                            console.log('API Response:', data);
-                            
-                            testResults.innerHTML = `
-                                <div class="success">
-                                    ✅ API Connection Successful!<br>
-                                    <small>URL: ${testUrl}</small><br>
-                                    <small>Status: ${response.status}</small>
-                                </div>
-                            `;
-                            
-                            // Update config with working URL
-                            config.apiUrl = testUrl.replace(/\/customers.*/, '');
-                            return true;
-                        }
-                    } catch (fetchError) {
-                        console.log(`Fetch error for ${testUrl}:`, fetchError);
-                        continue;
-                    }
-                }
-                
-                // If all URLs failed
-                testResults.innerHTML = `
-                    <div class="error">
-                        ❌ Could not connect to FieldRoutes API<br>
-                        <small>This might be due to CORS restrictions or incorrect credentials.</small><br><br>
-                        <strong>Please verify:</strong><br>
-                        • API URL: ${config.apiUrl}<br>
-                        • API Key is correct<br>
-                        • API Token is correct<br>
-                        • Your FieldRoutes account has API access enabled
-                    </div>
-                `;
-                
-                showError('connection-status', 'Connection test failed. Please check your credentials and API URL.');
-                return false;
                 
             } catch (error) {
-                console.error('Connection test error:', error);
-                testResults.innerHTML = `
-                    <div class="error">
-                        ❌ Connection Error: ${error.message}<br>
-                        <small>Check browser console for details</small>
-                    </div>
-                `;
-                showError('connection-status', 'Connection failed. Check console for details.');
-                return false;
+                showStatus('error', `❌ Server connection failed: ${error.message}`);
             }
-        }
-        
-        function showMainSection() {
-            document.getElementById('auth-section').classList.add('hidden');
-            document.getElementById('main-section').classList.remove('hidden');
-            document.getElementById('test-section').classList.add('hidden');
-        }
-        
-        async function loadCurrentCustomer() {
-            try {
-                if (typeof Missive !== 'undefined') {
-                    const conversation = await Missive.getCurrentConversation();
-                    if (conversation && conversation.contacts && conversation.contacts.length > 0) {
-                        const email = conversation.contacts[0]?.email;
-                        if (email) {
-                            document.getElementById('search').value = email;
-                            await searchCustomer();
-                        }
-                    }
-                }
-            } catch (error) {
-                console.log('Could not load current conversation:', error);
-                showInfo('customer-results', '💡 Enter a customer email or phone number to search');
-            }
-        }
-        
-        function handleSearch() {
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => {
-                const query = document.getElementById('search').value.trim();
-                if (query.length > 2) {
-                    searchCustomer();
-                }
-            }, 500);
         }
         
         async function searchCustomer() {
             const query = document.getElementById('search').value.trim();
-            if (!query) {
-                showError('customer-results', 'Please enter a search term');
-                return;
-            }
+            if (!query) return;
             
-            const resultsDiv = document.getElementById('customer-results');
-            resultsDiv.innerHTML = '<div class="card"><div class="loading">🔄 Searching for customer...</div></div>';
-            
-            const searchBtn = document.getElementById('search-btn');
-            searchBtn.disabled = true;
-            searchBtn.textContent = '🔄 Searching...';
+            document.getElementById('customer-results').innerHTML = 
+                '<div class="card"><div class="loading">🔄 Searching...</div></div>';
             
             try {
-                // Try to search by email first, then by general search
-                let customer = null;
+                const response = await fetch(`${config.serverUrl}/search-customer`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        query: query,
+                        apiUrl: config.apiUrl,
+                        apiKey: config.apiKey,
+                        apiToken: config.apiToken
+                    })
+                });
                 
-                if (query.includes('@')) {
-                    customer = await searchByEmail(query);
+                const result = await response.json();
+                
+                if (result.success && result.customer) {
+                    showCustomer(result.customer);
                 } else {
-                    customer = await searchGeneral(query);
+                    document.getElementById('customer-results').innerHTML = 
+                        `<div class="card"><div class="error">🚫 ${result.message || 'No customer found'}</div></div>`;
                 }
                 
-                if (customer) {
-                    showCustomer(customer);
-                } else {
-                    resultsDiv.innerHTML = `
-                        <div class="card">
-                            <div class="error">
-                                🚫 No customer found for "${query}"<br>
-                                <small>Try searching by email address, phone number, or full name</small>
-                            </div>
-                        </div>
-                    `;
+            } catch (error) {
+                document.getElementById('customer-results').innerHTML = 
+                    `<div class="card"><div class="error">❌ Search failed: ${error.message}</div></div>`;
+            }
+        }
+        
+        async function loadCurrentCustomer() {
+            try {
+                const conversation = await Missive.getCurrentConversation();
+                const email = conversation?.contacts?.[0]?.email;
+                if (email) {
+                    document.getElementById('search').value = email;
+                    await searchCustomer();
                 }
             } catch (error) {
-                console.error('Search error:', error);
-                resultsDiv.innerHTML = `
-                    <div class="card">
-                        <div class="error">
-                            ❌ Search failed: ${error.message}<br>
-                            <small>Please check your connection and try again</small>
-                        </div>
-                    </div>
-                `;
-            } finally {
-                searchBtn.disabled = false;
-                searchBtn.textContent = 'Search Customer';
+                console.log('Could not load current conversation');
             }
-        }
-        
-        async function searchByEmail(email) {
-            const url = `${config.apiUrl}/customers?email=${encodeURIComponent(email)}`;
-            return await makeApiRequest(url);
-        }
-        
-        async function searchGeneral(query) {
-            const url = `${config.apiUrl}/customers?search=${encodeURIComponent(query)}`;
-            return await makeApiRequest(url);
-        }
-        
-        async function makeApiRequest(url) {
-            console.log(`Making API request to: ${url}`);
-            
-            const response = await fetch(url, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${config.apiKey}`,
-                    'X-API-Token': config.apiSecret,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
-                mode: 'cors'
-            });
-            
-            if (!response.ok) {
-                throw new Error(`API request failed: ${response.status} ${response.statusText}`);
-            }
-            
-            const data = await response.json();
-            console.log('API Response:', data);
-            
-            // Handle different response formats
-            if (data.customers && data.customers.length > 0) {
-                return data.customers[0];
-            } else if (data.data && data.data.length > 0) {
-                return data.data[0];
-            } else if (Array.isArray(data) && data.length > 0) {
-                return data[0];
-            } else if (data.id) {
-                return data; // Single customer object
-            }
-            
-            return null;
         }
         
         function showCustomer(customer) {
@@ -443,18 +254,6 @@
                         <span class="detail-label">📊 Status:</span>
                         <span class="detail-value">${customer.status || customer.accountStatus || 'Active'}</span>
                     </div>
-                    ${customer.balance ? `
-                    <div class="customer-detail">
-                        <span class="detail-label">💰 Balance:</span>
-                        <span class="detail-value">$${customer.balance}</span>
-                    </div>
-                    ` : ''}
-                    ${customer.id ? `
-                    <div class="customer-detail">
-                        <span class="detail-label">🆔 ID:</span>
-                        <span class="detail-value">${customer.id}</span>
-                    </div>
-                    ` : ''}
                 </div>
             `;
             document.getElementById('customer-results').innerHTML = html;
@@ -463,27 +262,18 @@
         function formatAddress(address) {
             if (!address) return 'N/A';
             if (typeof address === 'string') return address;
-            
-            const parts = [
-                address.street || address.address1,
-                address.city,
-                address.state,
-                address.zip || address.zipCode
-            ].filter(Boolean);
-            
-            return parts.length > 0 ? parts.join(', ') : 'N/A';
+            const parts = [address.street, address.city, address.state, address.zip].filter(Boolean);
+            return parts.join(', ') || 'N/A';
         }
         
-        function showError(elementId, message) {
-            document.getElementById(elementId).innerHTML = `<div class="error">${message}</div>`;
+        function showMainSection() {
+            document.getElementById('auth-section').classList.add('hidden');
+            document.getElementById('main-section').classList.remove('hidden');
         }
         
-        function showSuccess(elementId, message) {
-            document.getElementById(elementId).innerHTML = `<div class="success">${message}</div>`;
-        }
-        
-        function showInfo(elementId, message) {
-            document.getElementById(elementId).innerHTML = `<div class="card">${message}</div>`;
+        function showStatus(type, message) {
+            const statusDiv = document.getElementById('connection-status');
+            statusDiv.innerHTML = `<div class="${type}">${message}</div>`;
         }
     </script>
 </body>
